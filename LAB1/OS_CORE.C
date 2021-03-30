@@ -191,15 +191,7 @@ void  OSIntExit (void)
                 out[out_ptrr].event = "Preempt";
                 out[out_ptrr].from = OSPrioCur;
                 out[out_ptrr++].to = OSPrioHighRdy;
-                // // int number = OSTime, n = log10(number) + 1, i;
-                // // for (i = n-1; i >= 0; --i, number /= 10)
-                // //     std::strncat(out, (number % 10) + '0', 256 - strlen(out) - 1);
-                // strncat(print_out, (INT8U*)&OSTime, 256 - strlen(print_out) - 1);
-                // strncat(print_out, "\tPreempt\t", 256 - strlen(print_out) - 1);
-                // strncat(print_out, (INT8U*)&OSPrioCur, 256 - strlen(print_out) - 1);
-                // strncat(print_out, "\t", 256 - strlen(print_out) - 1);
-                // strncat(print_out, (INT8U*)&OSPrioHighRdy, 256 - strlen(print_out) - 1);
-                // strncat(print_out, "\n", 256 - strlen(print_out) - 1);
+                
                 OSTCBHighRdy  = OSTCBPrioTbl[OSPrioHighRdy];
                 OSCtxSwCtr++;                              /* Keep track of the number of ctx switches */
                 OSIntCtxSw();                              /* Perform interrupt level ctx switch       */
@@ -398,14 +390,7 @@ void  OSTimeTick (void)
         while (ptcb->OSTCBPrio != OS_IDLE_PRIO) {          /* Go through all TCBs in TCB list          */
             OS_ENTER_CRITICAL();
 
-            // printf("%hhu\n", OSTCBHighRdy->OSTCBPrio);
             if (ptcb->OSTCBDly != 0) {                     /* Delayed or waiting for event with TO     */
-                // printf("%hhu %hhu\n", ptcb->OSTCBPrio, OSPrioHighRdy);
-                // if(ptcb->OSTCBPrio == OSPrioHighRdy){
-                //     if(ptcb->period != -999){
-                //         ptcb->compTime--;
-                //     }
-                // }
                 if (--ptcb->OSTCBDly == 0) {               /* Decrement nbr of ticks to end of delay   */
                     if ((ptcb->OSTCBStat & OS_STAT_SUSPEND) == OS_STAT_RDY) { /* Is task suspended?    */
                         OSRdyGrp               |= ptcb->OSTCBBitY; /* No,  Make task R-to-R (timed out)*/
@@ -909,15 +894,7 @@ void  OS_Sched (void)
             out[out_ptrr].event = "Complete";
             out[out_ptrr].from = OSPrioCur;
             out[out_ptrr++].to = OSPrioHighRdy;
-            // int number = OSTime, n = log10(number) + 1, i;
-            // for (i = n-1; i >= 0; --i, number /= 10)
-            //     strncat(print_out, (number % 10) + '0', 256 - strlen(print_out) - 1);
-            // // strncat(print_out, (INT8U*)&OSTime, 256 - strlen(print_out) - 1);
-            // strncat(print_out, "\tComplete\t", 256 - strlen(print_out) - 1);
-            // strncat(print_out, (INT8U*)&OSPrioCur, 256 - strlen(print_out) - 1);
-            // strncat(print_out, "\t", 256 - strlen(print_out) - 1);
-            // strncat(print_out, (INT8U*)&OSPrioHighRdy, 256 - strlen(print_out) - 1);
-            // strncat(print_out, "\n", 256 - strlen(print_out) - 1);
+            
             OSTCBHighRdy = OSTCBPrioTbl[OSPrioHighRdy];
             OSCtxSwCtr++;                              /* Increment context switch counter             */
             OS_TASK_SW();                              /* Perform a context switch                     */
