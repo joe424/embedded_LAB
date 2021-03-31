@@ -18,10 +18,10 @@
 */
 
 struct OUT{
-    INT32U TimeTick;
-    int event;              /* preempt:1, complete:2    */   
-    INT8U FromTaskPrio;
-    INT8U ToTaskPrio;
+    INT32U cur_time;
+    char* event;
+    INT8U from;
+    INT8U to;
 };
 
 #define  OS_VERSION              252                    /* Version of uC/OS-II (Vx.yy mult. by 100)    */
@@ -207,6 +207,7 @@ struct OUT{
 #define OS_FLAG_ERR_NOT_RDY     152
 #define OS_FLAG_INVALID_OPT     153
 #define OS_FLAG_GRP_DEPLETED    154
+
 
 /*$PAGE*/
 /*
@@ -402,6 +403,11 @@ typedef struct os_tcb {
 #endif    
     OS_FLAGS       OSTCBFlagsRdy;      /* Event flags that made task ready to run                      */
 #endif
+    struct OUT     *ptr_struct;
+    int            *ptr_count;
+
+    INT16S         compTime;
+    INT16S         period;
 
     INT16U         OSTCBDly;           /* Nbr ticks to delay task or, timeout waiting for event        */
     INT8U          OSTCBStat;          /* Task status                                                  */
@@ -415,18 +421,6 @@ typedef struct os_tcb {
 #if OS_TASK_DEL_EN > 0
     BOOLEAN        OSTCBDelReq;        /* Indicates whether a task needs to delete itself              */
 #endif
-    
-    struct OUT     *ptr_struct;
-    int            *ptr_count;
-    int compTime;
-    int period;
-    // struct printbuf{
-    //     INT32U TimeTick;
-    //     int event;              /* preempt:1, complete:2    */   
-    //     INT8U FromTaskPrio;
-    //     INT8U ToTaskPrio;
-    // }PrintBuf;
-
 } OS_TCB;
 
 /*$PAGE*/

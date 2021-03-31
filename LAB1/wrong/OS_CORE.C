@@ -17,7 +17,7 @@
 #include "includes.h"
 #endif
 
-struct OUT out[501];
+struct OUT out[1024];
 int out_ptrr = 0;
 
 /*
@@ -178,7 +178,6 @@ void  OSIntExit (void)
     OS_CPU_SR  cpu_sr;
 #endif
     
-    
     if (OSRunning == TRUE) {
         OS_ENTER_CRITICAL();
         if (OSIntNesting > 0) {                            /* Prevent OSIntNesting from wrapping       */
@@ -188,22 +187,12 @@ void  OSIntExit (void)
             OSIntExitY    = OSUnMapTbl[OSRdyGrp];          /* ... and not locked.                      */
             OSPrioHighRdy = (INT8U)((OSIntExitY << 3) + OSUnMapTbl[OSRdyTbl[OSIntExitY]]);
             if (OSPrioHighRdy != OSPrioCur) {              /* No Ctx Sw if current task is highest rdy */
+                out[out_ptrr].cur_time = OSTime;
+                out[out_ptrr].event = "Preempt";
+                out[out_ptrr].from = OSPrioCur;
+                out[out_ptrr++].to = OSPrioHighRdy;
+                
                 OSTCBHighRdy  = OSTCBPrioTbl[OSPrioHighRdy];
-
-                // OSTCBHighRdy->PrintBuf.TimeTick = OSTime;
-                // OSTCBHighRdy->PrintBuf.event = 1;
-                // OSTCBHighRdy->PrintBuf.FromTaskPrio = OSPrioCur;
-                // OSTCBHighRdy->PrintBuf.ToTaskPrio = OSPrioHighRdy;
-
-                // printf("%3lu\t", OSTCBHighRdy->PrintBuf.TimeTick);
-                // printf("%10s", "Preempt\t");
-                // printf("%10hhu\t%10hhu\n", OSTCBHighRdy->PrintBuf.FromTaskPrio, OSTCBHighRdy->PrintBuf.ToTaskPrio);
-
-                out[out_ptrr].TimeTick = OSTime;
-                out[out_ptrr].event = 1;
-                out[out_ptrr].FromTaskPrio = OSPrioCur;
-                out[out_ptrr++].ToTaskPrio = OSPrioHighRdy;
-
                 OSCtxSwCtr++;                              /* Keep track of the number of ctx switches */
                 OSIntCtxSw();                              /* Perform interrupt level ctx switch       */
             }
@@ -321,12 +310,6 @@ void  OSStart (void)
         OSPrioCur     = OSPrioHighRdy;
         OSTCBHighRdy  = OSTCBPrioTbl[OSPrioHighRdy]; /* Point to highest priority task ready to run    */
         OSTCBCur      = OSTCBHighRdy;
-
-        // OSTCBHighRdy->PrintBuf.TimeTick = OSTime;
-        // OSTCBHighRdy->PrintBuf.event = 1;
-        // OSTCBHighRdy->PrintBuf.FromTaskPrio = OSPrioCur;
-        // OSTCBHighRdy->PrintBuf.ToTaskPrio = OSPrioHighRdy;
-
         OSStartHighRdy();                            /* Execute target specific code to start task     */
     }
 }
@@ -400,12 +383,12 @@ void  OSTimeTick (void)
     OS_EXIT_CRITICAL();
 #endif
     if (OSRunning == TRUE) {    
-        ptcb = OSTCBList;                                  /* Point at first TCB in TCB list           */
+        ptcb = OSTCBList;
+        if(OSTCBHighRdy->period != -999)
+            OSTCBHighRdy->compTime--;
+        /* Point at first TCB in TCB list           */
         while (ptcb->OSTCBPrio != OS_IDLE_PRIO) {          /* Go through all TCBs in TCB list          */
             OS_ENTER_CRITICAL();
-
-            if(ptcb==OSTCBHighRdy && ptcb->compTime!=0)    /* Decrement computation time               */
-                ptcb->compTime--;
 
             if (ptcb->OSTCBDly != 0) {                     /* Delayed or waiting for event with TO     */
                 if (--ptcb->OSTCBDly == 0) {               /* Decrement nbr of ticks to end of delay   */
@@ -907,21 +890,12 @@ void  OS_Sched (void)
         y             = OSUnMapTbl[OSRdyGrp];          /* Get pointer to HPT ready to run              */
         OSPrioHighRdy = (INT8U)((y << 3) + OSUnMapTbl[OSRdyTbl[y]]);
         if (OSPrioHighRdy != OSPrioCur) {              /* No Ctx Sw if current task is highest rdy     */
+            out[out_ptrr].cur_time = OSTime;
+            out[out_ptrr].event = "Complete";
+            out[out_ptrr].from = OSPrioCur;
+            out[out_ptrr++].to = OSPrioHighRdy;
+            
             OSTCBHighRdy = OSTCBPrioTbl[OSPrioHighRdy];
-
-            // OSTCBHighRdy->PrintBuf.TimeTick = OSTime;
-            // OSTCBHighRdy->PrintBuf.event = 2;
-            // OSTCBHighRdy->PrintBuf.FromTaskPrio = OSPrioCur;
-            // OSTCBHighRdy->PrintBuf.ToTaskPrio = OSPrioHighRdy;
-
-            out[out_ptrr].TimeTick = OSTime;
-            out[out_ptrr].event = 2;
-            out[out_ptrr].FromTaskPrio = OSPrioCur;
-            out[out_ptrr++].ToTaskPrio = OSPrioHighRdy;
-            // printf("%3lu\t", OSTCBHighRdy->PrintBuf.TimeTick);
-            // printf("%10s", "Complete\t");
-            // printf("%10hhu\t%10hhu\n", OSTCBHighRdy->PrintBuf.FromTaskPrio, OSTCBHighRdy->PrintBuf.ToTaskPrio);
-
             OSCtxSwCtr++;                              /* Increment context switch counter             */
             OS_TASK_SW();                              /* Perform a context switch                     */
         }
@@ -1092,6 +1066,8 @@ INT8U  OS_TCBInit (INT8U prio, OS_STK *ptos, OS_STK *pbos, INT16U id, INT32U stk
         ptcb->OSTCBStat      = OS_STAT_RDY;                /* Task is ready to run                     */
         ptcb->OSTCBDly       = 0;                          /* Task is not delayed                      */
 
+        ptcb->compTime       = -999;
+        ptcb->period         = -999;
         ptcb->ptr_struct     = out;
         ptcb->ptr_count      = &out_ptrr;
 
