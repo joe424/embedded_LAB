@@ -18,7 +18,27 @@
 */
 
 //################## modified ##################//
-#define PRINT_LOG_NUMS 500
+#define PRINT_LOG_NUMS 15
+
+// #define C_TASK1 6
+// #define P_TASK1 40
+// #define A_TASK1 8
+
+// #define C_TASK2 6
+// #define P_TASK2 40
+// #define A_TASK2 4
+
+#define C_TASK1 11
+#define P_TASK1 40
+#define A_TASK1 5
+
+#define C_TASK2 12
+#define P_TASK2 40
+#define A_TASK2 0
+
+#define C_TASK3 9
+#define P_TASK3 40
+#define A_TASK3 0
 //################## modified ##################//
 
 #define  OS_VERSION              252                    /* Version of uC/OS-II (Vx.yy mult. by 100)    */
@@ -430,6 +450,7 @@ typedef struct os_tcb {
 //################## modified ##################//
 OS_EXT int LOG[PRINT_LOG_NUMS][5]; /* [tick, p/c, curTask, highTask, deadTask] */
 OS_EXT int print_log_iter;
+OS_EXT int mutex_owner;
 //################## modified ##################//
 
 OS_EXT  INT32U            OSCtxSwCtr;               /* Counter of number of context switches           */

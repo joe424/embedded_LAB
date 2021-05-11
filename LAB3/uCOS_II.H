@@ -17,12 +17,21 @@
 *********************************************************************************************************
 */
 
-struct OUT{
-    INT32U cur_time;
-    char* event;
-    INT8U from;
-    INT8U to;
-};
+//################## modified ##################//
+#define PRINT_LOG_NUMS 15
+
+#define C_TASK1 6
+#define P_TASK1 40
+#define A_TASK1 8
+
+#define C_TASK2 6
+#define P_TASK2 40
+#define A_TASK2 4
+
+#define C_TASK3 9
+#define P_TASK3 40
+#define A_TASK3 0
+//################## modified ##################//
 
 #define  OS_VERSION              252                    /* Version of uC/OS-II (Vx.yy mult. by 100)    */
 
@@ -208,7 +217,6 @@ struct OUT{
 #define OS_FLAG_INVALID_OPT     153
 #define OS_FLAG_GRP_DEPLETED    154
 
-
 /*$PAGE*/
 /*
 *********************************************************************************************************
@@ -378,6 +386,13 @@ typedef struct {
 typedef struct os_tcb {
     OS_STK        *OSTCBStkPtr;        /* Pointer to current top of stack                              */
 
+    //################## modified ##################//
+    int compTime;
+    int realCompTime;
+    int period;
+    int deadline;
+    //################## modified ##################//
+
 #if OS_TASK_CREATE_EXT_EN > 0
     void          *OSTCBExtPtr;        /* Pointer to user definable data for TCB extension             */
     OS_STK        *OSTCBStkBottom;     /* Pointer to bottom of stack                                   */
@@ -403,11 +418,6 @@ typedef struct os_tcb {
 #endif    
     OS_FLAGS       OSTCBFlagsRdy;      /* Event flags that made task ready to run                      */
 #endif
-    struct OUT     *ptr_struct;
-    int            *ptr_count;
-
-    INT16S         compTime;
-    INT16S         period;
 
     INT16U         OSTCBDly;           /* Nbr ticks to delay task or, timeout waiting for event        */
     INT8U          OSTCBStat;          /* Task status                                                  */
@@ -429,6 +439,11 @@ typedef struct os_tcb {
 *                                            GLOBAL VARIABLES
 *********************************************************************************************************
 */
+//################## modified ##################//
+OS_EXT int LOG[PRINT_LOG_NUMS][5]; /* [tick, p/c, curTask, highTask, deadTask] */
+OS_EXT int print_log_iter;
+OS_EXT int mutex_owner;
+//################## modified ##################//
 
 OS_EXT  INT32U            OSCtxSwCtr;               /* Counter of number of context switches           */
 

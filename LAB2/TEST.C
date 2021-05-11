@@ -4,18 +4,20 @@
 #define  N_TASKS                        3        /* Number of identical tasks                          */
 
 #define C_TASK0 1
-#define P_TASK0 3
-#define C_TASK1 3
-#define P_TASK1 6
-#define C_TASK2 4
-#define P_TASK2 9
+#define P_TASK0 4
+#define C_TASK1 2
+#define P_TASK1 5
+#define C_TASK2 2
+#define P_TASK2 10
 
 OS_STK        TaskStk[N_TASKS][TASK_STK_SIZE];        /* Tasks stacks                                  */
+OS_TCB        *ptcb;
 
 void  Task0(void *data); 
 void  Task1(void *data);                      /* Function prototypes of tasks                  */
 void  Task2(void *data);
 static  void  TaskStartCreateTasks(void);
+void  ArgumentSet(void);
 
 void  main (void)
 {
@@ -28,13 +30,12 @@ void  main (void)
     PC_VectSet(uCOS, OSCtxSw);                             /* Install uC/OS-II's context switch vector */
 
     OSTaskCreate(Task0, (void *)0, &TaskStk[0][TASK_STK_SIZE - 1], 0);
-    OSStart();                                             /* Start multitasking                       */
-}
-
-static  void  TaskStartCreateTasks (void)
-{
     OSTaskCreate(Task1, (void *)0, &TaskStk[1][TASK_STK_SIZE - 1], 1);
-    // OSTaskCreate(Task2, (void *)0, &TaskStk[2][TASK_STK_SIZE - 1], 2);  
+    OSTaskCreate(Task2, (void *)0, &TaskStk[2][TASK_STK_SIZE - 1], 2);  
+
+    ArgumentSet();
+    
+    OSStart();                                             /* Start multitasking                       */
 }
 
 void  Task0 (void *pdata)
@@ -54,14 +55,12 @@ void  Task0 (void *pdata)
     PC_SetTickRate(OS_TICKS_PER_SEC);                      /* Reprogram tick rate                      */
     OS_EXIT_CRITICAL();
 
-    TaskStartCreateTasks();
-
     pdata = pdata;
     start = OSTimeGet();
-    OSTCBCur->compTime = C_TASK0;
-    OSTCBCur->realCompTime = C_TASK0;
-    OSTCBCur->period = P_TASK0;
-    OSTCBCur->deadline = P_TASK0;
+    // OSTCBCur->compTime = C_TASK0;
+    // OSTCBCur->realCompTime = C_TASK0;
+    // OSTCBCur->period = P_TASK0;
+    // OSTCBCur->deadline = P_TASK0;
     while(1){ /* the task who has highest priority print the log */
         if(print_log_iter >= PRINT_LOG_NUMS){
             for(i=0; i<PRINT_LOG_NUMS; i++){
@@ -101,10 +100,10 @@ void  Task1 (void *pdata)
     pdata = pdata;
 
     start = OSTimeGet();
-    OSTCBCur->compTime = C_TASK1;
-    OSTCBCur->realCompTime = C_TASK1;
-    OSTCBCur->period = P_TASK1;
-    OSTCBCur->deadline = P_TASK1;
+    // OSTCBCur->compTime = C_TASK1;
+    // OSTCBCur->realCompTime = C_TASK1;
+    // OSTCBCur->period = P_TASK1;
+    // OSTCBCur->deadline = P_TASK1;
     while(1){
         while(OSTCBCur->compTime > 0){}
         end = OSTimeGet();
@@ -123,10 +122,10 @@ void  Task2 (void *pdata)
     pdata = pdata;
 
     start = OSTimeGet();
-    OSTCBCur->compTime = C_TASK2;
-    OSTCBCur->realCompTime = C_TASK2;
-    OSTCBCur->period = P_TASK2;
-    OSTCBCur->deadline = P_TASK2;
+    // OSTCBCur->compTime = C_TASK2;
+    // OSTCBCur->realCompTime = C_TASK2;
+    // OSTCBCur->period = P_TASK2;
+    // OSTCBCur->deadline = P_TASK2;
     while(1){
         while(OSTCBCur->compTime > 0){}
         end = OSTimeGet();
@@ -136,4 +135,34 @@ void  Task2 (void *pdata)
             OSTimeDly(toDelay);
         OSTCBCur->compTime = C_TASK2;
     }
+}
+
+void ArgumentSet(void){
+    ptcb = OSTCBList;
+    // printf("fuck\n");
+    while(ptcb->OSTCBPrio != OS_IDLE_PRIO){
+        if(ptcb->OSTCBPrio == 0){
+            // printf("set 0\n");
+            ptcb->compTime = C_TASK0;
+            ptcb->realCompTime = C_TASK0;
+            ptcb->period = P_TASK0;
+            ptcb->deadline = P_TASK0;
+        }
+        else if(ptcb->OSTCBPrio == 1){
+        	// printf("set 1\n");
+            ptcb->compTime = C_TASK1;
+            ptcb->realCompTime = C_TASK1;
+            ptcb->period = P_TASK1;
+            ptcb->deadline = P_TASK1;
+        }
+        else if(ptcb->OSTCBPrio == 2){
+            // printf("set 2\n");
+            ptcb->compTime = C_TASK2;
+            ptcb->realCompTime = C_TASK2;
+            ptcb->period = P_TASK2;
+            ptcb->deadline = P_TASK2;
+        }
+        ptcb = ptcb->OSTCBNext;
+    }
+    // printf("shit\n");
 }

@@ -17,9 +17,6 @@
 #include "includes.h"
 #endif
 
-struct OUT out[1024];
-int out_ptrr = 0;
-
 /*
 *********************************************************************************************************
 *                              MAPPING TABLE TO MAP BIT POSITION TO BIT MASK
@@ -178,20 +175,48 @@ void  OSIntExit (void)
     OS_CPU_SR  cpu_sr;
 #endif
     
+    //################## modified ##################//
+    OS_TCB *ptcb;
+    int minDeadline;
+    //################## modified ##################//
+
     if (OSRunning == TRUE) {
         OS_ENTER_CRITICAL();
         if (OSIntNesting > 0) {                            /* Prevent OSIntNesting from wrapping       */
             OSIntNesting--;
         }
         if ((OSIntNesting == 0) && (OSLockNesting == 0)) { /* Reschedule only if all ISRs complete ... */
-            OSIntExitY    = OSUnMapTbl[OSRdyGrp];          /* ... and not locked.                      */
-            OSPrioHighRdy = (INT8U)((OSIntExitY << 3) + OSUnMapTbl[OSRdyTbl[OSIntExitY]]);
-            if (OSPrioHighRdy != OSPrioCur) {              /* No Ctx Sw if current task is highest rdy */
-                out[out_ptrr].cur_time = OSTime;
-                out[out_ptrr].event = "Preempt";
-                out[out_ptrr].from = OSPrioCur;
-                out[out_ptrr++].to = OSPrioHighRdy;
-                
+            
+            // OSIntExitY    = OSUnMapTbl[OSRdyGrp];          /* ... and not locked.                      */
+            // OSPrioHighRdy = (INT8U)((OSIntExitY << 3) + OSUnMapTbl[OSRdyTbl[OSIntExitY]]);
+            
+            //################## modified ##################//
+            ptcb = OSTCBList;
+            minDeadline = 1000;
+            OSPrioHighRdy = OS_IDLE_PRIO;
+
+            while (ptcb->OSTCBPrio != OS_IDLE_PRIO) {
+                OS_ENTER_CRITICAL();
+                if(ptcb->OSTCBPrio == 0 || ptcb->OSTCBPrio == 1 || ptcb->OSTCBPrio == 2){
+                    if(ptcb->OSTCBStat == OS_STAT_RDY && !ptcb->OSTCBDly && ptcb->deadline < minDeadline){
+                        minDeadline = ptcb->deadline;
+                        OSPrioHighRdy = ptcb->OSTCBPrio;
+                    }
+                }
+                ptcb = ptcb->OSTCBNext;
+                OS_EXIT_CRITICAL();
+            }
+
+            if (OSPrioHighRdy != OSPrioCur) {
+                if(print_log_iter < PRINT_LOG_NUMS){
+                    LOG[print_log_iter][0] = OSTime;
+                    LOG[print_log_iter][1] = 1; /* Preemptive */
+                    LOG[print_log_iter][2] = OSPrioCur;
+                    LOG[print_log_iter][3] = OSPrioHighRdy;
+                    LOG[print_log_iter++][4] = -1; /* not deadline log */
+                }
+            //################## modified ##################//
+
                 OSTCBHighRdy  = OSTCBPrioTbl[OSPrioHighRdy];
                 OSCtxSwCtr++;                              /* Keep track of the number of ctx switches */
                 OSIntCtxSw();                              /* Perform interrupt level ctx switch       */
@@ -302,11 +327,41 @@ void  OSStart (void)
     INT8U y;
     INT8U x;
 
+    //################## modified ##################//
+    int minDeadline;
+    OS_TCB *ptcb;
+    //################## modified ##################//
 
     if (OSRunning == FALSE) {
-        y             = OSUnMapTbl[OSRdyGrp];        /* Find highest priority's task priority number   */
-        x             = OSUnMapTbl[OSRdyTbl[y]];
-        OSPrioHighRdy = (INT8U)((y << 3) + x);
+        // y             = OSUnMapTbl[OSRdyGrp];        /* Find highest priority's task priority number   */
+        // x             = OSUnMapTbl[OSRdyTbl[y]];
+        // OSPrioHighRdy = (INT8U)((y << 3) + x);
+
+        //################## modified ##################//
+        minDeadline = 1000;
+        ptcb = OSTCBList;
+        OSPrioHighRdy = OS_IDLE_PRIO;
+        while (ptcb->OSTCBPrio != OS_IDLE_PRIO) {
+            OS_ENTER_CRITICAL();
+            if(ptcb->OSTCBPrio == 0 || ptcb->OSTCBPrio == 1 || ptcb->OSTCBPrio == 2){
+                if(ptcb->OSTCBStat == OS_STAT_RDY && ptcb->deadline < minDeadline){
+                    minDeadline = ptcb->deadline;
+                    OSPrioHighRdy = ptcb->OSTCBPrio;
+                }
+            }
+            ptcb = ptcb->OSTCBNext;
+            OS_EXIT_CRITICAL();
+        }
+
+        // if(print_log_iter < PRINT_LOG_NUMS){
+        //     LOG[print_log_iter][0] = OSTime;
+        //     LOG[print_log_iter][1] = 0; /* Complete */
+        //     LOG[print_log_iter][2] = OSPrioCur;
+        //     LOG[print_log_iter][3] = OSPrioHighRdy;
+        //     LOG[print_log_iter++][4] = -1; /* not deadline log */
+        // }
+        //################## modified ##################//
+
         OSPrioCur     = OSPrioHighRdy;
         OSTCBHighRdy  = OSTCBPrioTbl[OSPrioHighRdy]; /* Point to highest priority task ready to run    */
         OSTCBCur      = OSTCBHighRdy;
@@ -375,7 +430,6 @@ void  OSTimeTick (void)
 #endif    
     OS_TCB    *ptcb;
 
-
     OSTimeTickHook();                                      /* Call user definable hook                 */
 #if OS_TIME_GET_SET_EN > 0   
     OS_ENTER_CRITICAL();                                   /* Update the 32-bit tick counter           */
@@ -383,12 +437,25 @@ void  OSTimeTick (void)
     OS_EXIT_CRITICAL();
 #endif
     if (OSRunning == TRUE) {    
-        ptcb = OSTCBList;
-        if(OSTCBHighRdy->period != -999)
-            OSTCBHighRdy->compTime--;
-        /* Point at first TCB in TCB list           */
+        ptcb = OSTCBList;                                  /* Point at first TCB in TCB list           */
         while (ptcb->OSTCBPrio != OS_IDLE_PRIO) {          /* Go through all TCBs in TCB list          */
             OS_ENTER_CRITICAL();
+
+            //################## modified ##################//
+            if(ptcb->OSTCBPrio == OSPrioCur && ptcb->compTime > 0)
+                ptcb->compTime--;
+                
+            if(OSTime == ptcb->deadline){
+                if(ptcb->compTime > 0){
+                    if(print_log_iter < PRINT_LOG_NUMS && ptcb->OSTCBPrio >= 0 && ptcb->OSTCBPrio < 3){
+                        LOG[print_log_iter][0] = OSTime;
+                        LOG[print_log_iter++][4] = ptcb->OSTCBPrio; /* deadline log */
+                        ptcb->compTime = ptcb->realCompTime;
+                    }
+                }
+                ptcb->deadline += ptcb->period;
+            }
+            //################## modified ##################//
 
             if (ptcb->OSTCBDly != 0) {                     /* Delayed or waiting for event with TO     */
                 if (--ptcb->OSTCBDly == 0) {               /* Decrement nbr of ticks to end of delay   */
@@ -884,16 +951,45 @@ void  OS_Sched (void)
 #endif    
     INT8U      y;
 
+    //################## modified ##################//
+    OS_TCB *ptcb;
+    int minDeadline;
+    //################## modified ##################//
 
     OS_ENTER_CRITICAL();
     if ((OSIntNesting == 0) && (OSLockNesting == 0)) { /* Sched. only if all ISRs done & not locked    */
-        y             = OSUnMapTbl[OSRdyGrp];          /* Get pointer to HPT ready to run              */
-        OSPrioHighRdy = (INT8U)((y << 3) + OSUnMapTbl[OSRdyTbl[y]]);
+        // y             = OSUnMapTbl[OSRdyGrp];          /* Get pointer to HPT ready to run              */
+        // OSPrioHighRdy = (INT8U)((y << 3) + OSUnMapTbl[OSRdyTbl[y]]);
+        
+        //################## modified ##################//
+        minDeadline = 1000;
+        ptcb = OSTCBList;
+        OSPrioHighRdy = OS_IDLE_PRIO;
+
+        while (ptcb->OSTCBPrio != OS_IDLE_PRIO) {
+            OS_ENTER_CRITICAL();
+            if(ptcb->OSTCBPrio == 0 || ptcb->OSTCBPrio == 1 || ptcb->OSTCBPrio == 2){
+                if(ptcb->OSTCBStat == OS_STAT_RDY && !ptcb->OSTCBDly && ptcb->deadline < minDeadline){
+                    minDeadline = ptcb->deadline;
+                    OSPrioHighRdy = ptcb->OSTCBPrio;
+                }
+            }
+            ptcb = ptcb->OSTCBNext;
+            OS_EXIT_CRITICAL();
+        }
+        
+
         if (OSPrioHighRdy != OSPrioCur) {              /* No Ctx Sw if current task is highest rdy     */
-            out[out_ptrr].cur_time = OSTime;
-            out[out_ptrr].event = "Complete";
-            out[out_ptrr].from = OSPrioCur;
-            out[out_ptrr++].to = OSPrioHighRdy;
+            
+            //################## modified ##################//
+            if(print_log_iter < PRINT_LOG_NUMS){
+                LOG[print_log_iter][0] = OSTime;
+                LOG[print_log_iter][1] = 0; /* Complete */
+                LOG[print_log_iter][2] = OSPrioCur;
+                LOG[print_log_iter][3] = OSPrioHighRdy;
+                LOG[print_log_iter++][4] = -1; /* not deadline log */
+            }
+            //################## modified ##################//
             
             OSTCBHighRdy = OSTCBPrioTbl[OSPrioHighRdy];
             OSCtxSwCtr++;                              /* Increment context switch counter             */
@@ -1055,7 +1151,6 @@ INT8U  OS_TCBInit (INT8U prio, OS_STK *ptos, OS_STK *pbos, INT16U id, INT32U stk
 #endif    
     OS_TCB    *ptcb;
 
-
     OS_ENTER_CRITICAL();
     ptcb = OSTCBFreeList;                                  /* Get a free TCB from the free TCB list    */
     if (ptcb != (OS_TCB *)0) {
@@ -1065,11 +1160,6 @@ INT8U  OS_TCBInit (INT8U prio, OS_STK *ptos, OS_STK *pbos, INT16U id, INT32U stk
         ptcb->OSTCBPrio      = (INT8U)prio;                /* Load task priority into TCB              */
         ptcb->OSTCBStat      = OS_STAT_RDY;                /* Task is ready to run                     */
         ptcb->OSTCBDly       = 0;                          /* Task is not delayed                      */
-
-        ptcb->compTime       = -999;
-        ptcb->period         = -999;
-        ptcb->ptr_struct     = out;
-        ptcb->ptr_count      = &out_ptrr;
 
 #if OS_TASK_CREATE_EXT_EN > 0
         ptcb->OSTCBExtPtr    = pext;                       /* Store pointer to TCB extension           */
@@ -1123,6 +1213,7 @@ INT8U  OS_TCBInit (INT8U prio, OS_STK *ptos, OS_STK *pbos, INT16U id, INT32U stk
         OSRdyGrp               |= ptcb->OSTCBBitY;         /* Make task ready to run                   */
         OSRdyTbl[ptcb->OSTCBY] |= ptcb->OSTCBBitX;
         OS_EXIT_CRITICAL();
+
         return (OS_NO_ERR);
     }
     OS_EXIT_CRITICAL();
